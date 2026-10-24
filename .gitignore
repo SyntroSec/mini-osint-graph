@@ -28,3 +28,5 @@ dist/
 htmlcov/
 local.mtz
 out.html
+.venv/
+__pycache__/
