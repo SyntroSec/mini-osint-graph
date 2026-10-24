@@ -10,7 +10,16 @@ entity list and the link label; graph.py adds them to the graph.
 import dns.exception
 from dns_records import lookup_domain, normalize_domain
 
-from mini_graph.model import Entity, LinkedEntity, Message
+from mini_graph.model import (
+    DMARC_RESULT,
+    Entity,
+    IPV6_ADDRESS,
+    LinkedEntity,
+    Message,
+    NAME_SERVER,
+    SPF_RESULT,
+    TXT_RECORD,
+)
 
 # Type names match the transform server's entity identifiers so the two
 # tools' graphs can be compared by eye. These constants do not call the library.
@@ -71,7 +80,74 @@ def domain_to_dns(entity, limit=100):
         )
         remaining -= 1
 
+    for address in found.get("ipv6", []):
+        if remaining <= 0:
+            break
+        linked.append(
+            LinkedEntity(
+                Entity(IPV6_ADDRESS, address, display=f"AAAA record for {hostname}"),
+                "AAAA",
+            )
+        )
+        remaining -= 1
+
+    for nameserver in found.get("nameservers", []):
+        if remaining <= 0:
+            break
+        linked.append(
+            LinkedEntity(
+                Entity(NAME_SERVER, nameserver, display=f"NS record for {hostname}"),
+                "NS",
+            )
+        )
+        remaining -= 1
+
+    for text in found.get("txt", []):
+        if remaining <= 0:
+            break
+        linked.append(
+            LinkedEntity(
+                Entity(TXT_RECORD, text, display=f"TXT record for {hostname}"),
+                "TXT",
+            )
+        )
+        remaining -= 1
+
+    # SPF and DMARC are reported even when the slider has no room left,
+    # so a tight limit still says whether each policy is present or missing.
+    spf_state = found.get("spf", "missing")
+    linked.append(
+        LinkedEntity(
+            Entity(
+                SPF_RESULT,
+                spf_state,
+                properties={"record": found.get("spf_record", "")},
+                display=found.get("spf_record", "") or f"SPF {spf_state} for {hostname}",
+            ),
+            "SPF",
+        )
+    )
+    dmarc_state = found.get("dmarc", "missing")
+    linked.append(
+        LinkedEntity(
+            Entity(
+                DMARC_RESULT,
+                dmarc_state,
+                properties={"record": found.get("dmarc_record", "")},
+                display=found.get("dmarc_record", "") or f"DMARC {dmarc_state} for {hostname}",
+            ),
+            "DMARC",
+        )
+    )
+
     messages = [Message(note, "Inform") for note in found["notes"]]
+    if found.get("txt_error"):
+        messages.append(Message(
+            "TXT lookup failed, so SPF could not be read from TXT records.",
+            "Inform",
+        ))
+    if found.get("dmarc_error"):
+        messages.append(Message("DMARC lookup failed.", "Inform"))
     produced = (limit if limit and limit > 0 else 100) - remaining
     total = len(found["addresses"]) + len(found["mail_servers"])
     if produced == 0 and not messages:

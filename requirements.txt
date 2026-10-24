@@ -1,7 +1,9 @@
 # Python dependencies for this project.
 # maltego-trx — open transform library (handles the entity request and the XML response).
-# dnspython — reads A and MX records through the operating system's DNS resolver.
+# dnspython — reads A, AAAA, MX, NS, and TXT records through the operating system's DNS resolver.
 # networkx — stores entities and links as a graph in the mini_graph package.
+# pyvis — writes that graph to a standalone HTML file.
 maltego-trx==1.7.0
 dnspython==2.8.0
 networkx==3.6.1
+pyvis==0.3.2

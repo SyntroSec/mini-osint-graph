@@ -7,6 +7,14 @@ The same type and the same value are the same node. When the same
 entity appears again on the graph, it merges into one node.
 """
 
+# Entity types added beside the existing maltego.* names.
+# Those maltego.* strings stay in dns_transform.py and are not renamed.
+IPV6_ADDRESS = "ipv6-address"
+NAME_SERVER = "name-server"
+TXT_RECORD = "txt-record"
+SPF_RESULT = "spf-result"
+DMARC_RESULT = "dmarc-result"
+
 
 class Entity:
     """One piece of information: type + value + properties."""

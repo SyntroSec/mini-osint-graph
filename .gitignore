@@ -27,3 +27,4 @@ dist/
 .coverage
 htmlcov/
 local.mtz
+out.html

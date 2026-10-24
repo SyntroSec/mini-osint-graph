@@ -1,10 +1,10 @@
 # mini-osint-graph
 
-Reads DNS A and MX records for a domain name and shows them as a graph.
+Reads DNS A, AAAA, MX, NS, and TXT records for a domain name and shows them as a graph. SPF is detected from TXT records that start with `v=spf1`. DMARC is read from `_dmarc.<domain>`. Each is reported as present or missing.
 
 There are two entry points:
 
-- `mini_graph` prints the result as a networkx graph in text form.
+- `mini_graph` prints the result as a networkx graph in text form, and can write the same graph to an HTML file with pyvis.
 - `project.py` runs the same lookup through `maltego-trx`, either as a local transform or as an HTTP transform server. The input entity type is `maltego.Domain`. The outputs are `maltego.IPv4Address` and `maltego.MXRecord`.
 
 ## Installation
@@ -23,9 +23,10 @@ Graph tool:
 ```text
 .\venv\Scripts\python.exe -m mini_graph example.com
 .\venv\Scripts\python.exe -m mini_graph example.com 1
+.\venv\Scripts\python.exe -m mini_graph example.com --html out.html
 ```
 
-The second number is the result limit.
+The second number is the result limit. `--html` writes a standalone HTML file.
 
 Local transform (XML on stdout):
 

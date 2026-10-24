@@ -1,10 +1,11 @@
-"""dns_records.py — shared functions that read A and MX records for a domain.
+"""dns_records.py — shared functions that read DNS records for a domain.
 
 This file does not know the transform protocol. Two callers use it:
   transforms/DomainToDns.py — turns the result into response XML
   mini_graph — turns the result into a networkx graph
 
 The query goes to this machine's own DNS resolver. There is no zone transfer and no name list.
+A and MX stay as they were. AAAA, NS, TXT, SPF, and DMARC are added beside them.
 """
 
 import re
@@ -64,6 +65,68 @@ def _query(resolver, hostname, record_type):
         raise RuntimeError(f"{record_type}: {exc.__class__.__name__}") from exc
 
 
+def _txt_to_str(record):
+    """Join the chunks of one TXT record into a single string."""
+    parts = []
+    for piece in record.strings:
+        if isinstance(piece, bytes):
+            parts.append(piece.decode("utf-8", errors="replace"))
+        else:
+            parts.append(str(piece))
+    return "".join(parts)
+
+
+def _records_or_empty(resolver, hostname, record_type):
+    """Query one type. A failure here does not change the A or MX result.
+
+    None means the query failed. An empty list means the name answered
+    and had no records of this type.
+    """
+    try:
+        answers, no_answer = _query(resolver, hostname, record_type)
+    except dns.resolver.NXDOMAIN:
+        return []
+    except RuntimeError:
+        return None
+    if no_answer:
+        return []
+    return answers
+
+
+def _attach_other_records(resolver, hostname, found):
+    """Add AAAA, NS, TXT, SPF, and DMARC without touching A or MX fields."""
+    # A and MX already used the shorter resolver lifetime. These extra
+    # queries keep that result and only wait longer for their own answers.
+    resolver.timeout = 5.0
+    resolver.lifetime = 20.0
+    ipv6 = _records_or_empty(resolver, hostname, "AAAA") or []
+    found["ipv6"] = list(dict.fromkeys(record.address for record in ipv6))
+
+    nameservers = _records_or_empty(resolver, hostname, "NS") or []
+    found["nameservers"] = list(
+        dict.fromkeys(str(record.target).rstrip(".") for record in nameservers)
+    )
+
+    txt_records = _records_or_empty(resolver, hostname, "TXT")
+    found["txt_error"] = txt_records is None
+    txt_records = txt_records or []
+    found["txt"] = list(dict.fromkeys(_txt_to_str(record) for record in txt_records))
+
+    spf_records = [text for text in found["txt"] if text.lower().lstrip().startswith("v=spf1")]
+    found["spf"] = "present" if spf_records else "missing"
+    found["spf_record"] = spf_records[0] if spf_records else ""
+
+    dmarc_answers = _records_or_empty(resolver, f"_dmarc.{hostname}", "TXT")
+    found["dmarc_error"] = dmarc_answers is None
+    dmarc_records = []
+    for record in dmarc_answers or []:
+        text = _txt_to_str(record)
+        if text.lower().lstrip().startswith("v=dmarc1"):
+            dmarc_records.append(text)
+    found["dmarc"] = "present" if dmarc_records else "missing"
+    found["dmarc_record"] = dmarc_records[0] if dmarc_records else ""
+
+
 def lookup_domain(hostname):
     """Read A and MX records from the system DNS resolver.
 
@@ -72,6 +135,13 @@ def lookup_domain(hostname):
       mail_servers — (priority, host) pairs, priority ascending
       notes — short notes (for example, no records of this type)
       error — reason that stops the whole lookup, or None
+      ipv6 — IPv6 strings
+      nameservers — name server hostnames
+      txt — apex TXT strings
+      spf — "present" or "missing"
+      spf_record — first SPF string, or ""
+      dmarc — "present" or "missing" for _dmarc.<domain>
+      dmarc_record — first DMARC string, or ""
     """
     resolver = dns.resolver.Resolver()
     resolver.timeout = 2.0
@@ -82,6 +152,13 @@ def lookup_domain(hostname):
         "mail_servers": [],
         "notes": [],
         "error": None,
+        "ipv6": [],
+        "nameservers": [],
+        "txt": [],
+        "spf": "missing",
+        "spf_record": "",
+        "dmarc": "missing",
+        "dmarc_record": "",
     }
 
     try:
@@ -109,6 +186,7 @@ def lookup_domain(hostname):
 
     if no_answer:
         found["notes"].append(f"No MX records for {hostname}.")
+        _attach_other_records(resolver, hostname, found)
         return found
 
     mail_servers = []
@@ -126,4 +204,5 @@ def lookup_domain(hostname):
     found["mail_servers"] = list(dict.fromkeys(mail_servers))
     if null_mx and not found["mail_servers"]:
         found["notes"].append(f"Null MX for {hostname}: the domain does not accept mail.")
+    _attach_other_records(resolver, hostname, found)
     return found
