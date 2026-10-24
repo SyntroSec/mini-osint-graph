@@ -1,0 +1,2 @@
+Owner,Author,Disclaimer,Description,Version,Name,UIName,URL,entityName,oAuthSettingId,transformSettingIDs,seedIDs,outputEntities
+Local learning project,Ümid,,Resolve a domain to its DNS A and MX records.,0.1,domaintodns,Domain to DNS A and MX,http://127.0.0.1:8080/run/domaintodns,maltego.Domain,,,local-dns,maltego.IPv4Address;maltego.MXRecord
