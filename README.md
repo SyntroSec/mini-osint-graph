@@ -154,6 +154,15 @@ DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 se
 
 **Other messages.** `Input is not a domain name. Expected a host such as example.com.` means the value was empty, a bare word, or an IPv4 address. `NXDOMAIN: <name> does not exist` means the DNS server says the name is not in the zone. `Result slider truncated the remaining records.` means the limit cut off A or MX records.
 
+## Running tests
+
+```text
+.\venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\venv\Scripts\python.exe -m pytest
+```
+
+`pytest` is listed in `requirements-dev.txt`, not in `requirements.txt`. The tests mock DNS and do not contact a name server. A finished run prints the pass count and `pytest` exits with code 0.
+
 ## Limitations
 
 The tool looks up one hostname. It does not discover subdomains, and it does not query WHOIS. It does not walk name servers for a zone transfer or try a word list. It uses only the DNS servers configured on this machine. The local transform and the HTTP server return A and MX only; AAAA, NS, TXT, SPF, and DMARC are in `mini_graph`.
