@@ -5,8 +5,8 @@ from tests.fakes import RR, patch_dns
 
 
 def test_html_option_with_path():
-    assert _parse_args(["example.com", "--html", "out.html"]) == ("example.com", 100, "out.html", False)
-    assert _parse_args(["example.com", "5", "--html", "out.html"]) == ("example.com", 5, "out.html", False)
+    assert _parse_args(["example.com", "--html", "out.html"]) == ("example.com", 100, "out.html", False, False)
+    assert _parse_args(["example.com", "5", "--html", "out.html"]) == ("example.com", 5, "out.html", False, False)
 
 
 def test_html_option_without_path(capsys):
@@ -25,7 +25,7 @@ def test_non_integer_limit(capsys):
 
 def test_help(capsys):
     assert main(["-h"]) == 2
-    assert "Usage: python -m mini_graph <domain> [limit] [--html FILE] [--subdomains]" in capsys.readouterr().out
+    assert "Usage: python -m mini_graph <domain> [limit] [--html FILE] [--subdomains] [--rdap]" in capsys.readouterr().out
     assert main(["--help"]) == 2
 
 

@@ -46,9 +46,10 @@ class InvestigationGraph:
 
         for item in linked:
             target_id = self.add_entity(item.entity)
+            origin = item.source_id or source_id
             # Do not add a second edge for the same pair and the same label.
-            if not self.graph.has_edge(source_id, target_id):
-                self.graph.add_edge(source_id, target_id, label=item.link_label)
+            if origin in self.graph and not self.graph.has_edge(origin, target_id):
+                self.graph.add_edge(origin, target_id, label=item.link_label)
         return messages
 
     def render(self):
@@ -62,12 +63,11 @@ class InvestigationGraph:
             data = self.graph.nodes[root]
             lines.append(f"{data['type']}  {data['value']}")
             for _source, target, edge in self.graph.out_edges(root, data=True):
-                target_data = self.graph.nodes[target]
-                priority = target_data.get("properties", {}).get("priority")
-                suffix = f"  priority={priority}" if priority else ""
-                lines.append(
-                    f"  --{edge.get('label', '')}-->  {target_data['type']}  {target_data['value']}{suffix}"
-                )
+                lines.append(_edge_line(self.graph, target, edge, "  "))
+                # A network node hangs off the IP node. DNS records have no
+                # children, so this extra level does not change their lines.
+                for _nested_source, nested, nested_edge in self.graph.out_edges(target, data=True):
+                    lines.append(_edge_line(self.graph, nested, nested_edge, "    "))
 
         node_count = self.graph.number_of_nodes()
         edge_count = self.graph.number_of_edges()
@@ -75,3 +75,30 @@ class InvestigationGraph:
         edge_word = "edge" if edge_count == 1 else "edges"
         lines.append(f"{node_count} {node_word}, {edge_count} {edge_word}")
         return "\n".join(lines)
+
+
+def _edge_line(graph, target, edge, indent):
+    """One indented link. MX priority is unchanged when it is the only property."""
+    target_data = graph.nodes[target]
+    return (
+        f"{indent}--{edge.get('label', '')}-->  "
+        f"{target_data['type']}  {target_data['value']}{_detail_suffix(target_data.get('properties'))}"
+    )
+
+
+def _detail_suffix(properties):
+    properties = properties or {}
+    parts = []
+    if properties.get("priority"):
+        parts.append(f"priority={properties['priority']}")
+    if properties.get("status"):
+        parts.append(f"status={properties['status']}")
+    if properties.get("last_changed"):
+        parts.append(f"changed={properties['last_changed']}")
+    if properties.get("cidr"):
+        parts.append(f"cidr={properties['cidr']}")
+    elif properties.get("start") and properties.get("end"):
+        parts.append(f"range={properties['start']}-{properties['end']}")
+    if not parts:
+        return ""
+    return "  " + "  ".join(parts)

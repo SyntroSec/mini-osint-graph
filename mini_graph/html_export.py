@@ -20,8 +20,7 @@ def write_html(investigation, path):
     )
     graph = investigation.graph
     for node_id, data in graph.nodes(data=True):
-        record = data.get("properties", {}).get("record") or ""
-        title = data["type"] if not record else f"{data['type']}\n{record}"
+        title = _node_title(data)
         label = str(data["value"])
         if len(label) > 80:
             label = label[:77] + "..."
@@ -37,3 +36,21 @@ def write_html(investigation, path):
     html = network.generate_html(notebook=False)
     with open(path, "w", encoding="utf-8", newline="\n") as handle:
         handle.write(html)
+
+
+def _node_title(data):
+    """Hover text. SPF and DMARC still show the record string and nothing else."""
+    properties = data.get("properties") or {}
+    record = properties.get("record") or ""
+    lines = [data["type"]] if not record else [data["type"], record]
+    if properties.get("status"):
+        lines.append(f"status={properties['status']}")
+    if properties.get("last_changed"):
+        lines.append(f"changed={properties['last_changed']}")
+    if properties.get("cidr"):
+        lines.append(f"cidr={properties['cidr']}")
+    elif properties.get("start") and properties.get("end"):
+        lines.append(f"range={properties['start']}-{properties['end']}")
+    if len(lines) == 1:
+        return lines[0]
+    return "\n".join(lines)

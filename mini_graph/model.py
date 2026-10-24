@@ -15,6 +15,10 @@ TXT_RECORD = "txt-record"
 SPF_RESULT = "spf-result"
 DMARC_RESULT = "dmarc-result"
 SUBDOMAIN = "subdomain"
+REGISTRAR = "registrar"
+REGISTRATION_DATE = "registration-date"
+EXPIRATION_DATE = "expiration-date"
+NETWORK = "network"
 
 
 class Entity:
@@ -41,9 +45,12 @@ class LinkedEntity:
     Here the link is its own field, because this package builds the graph itself.
     """
 
-    def __init__(self, entity, link_label):
+    def __init__(self, entity, link_label, source_id=None):
         self.entity = entity
         self.link_label = link_label
+        # None means the edge starts at the entity the transform was run on.
+        # A network result sets this to the IP node it describes.
+        self.source_id = source_id
 
 
 class Message:

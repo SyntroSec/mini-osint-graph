@@ -17,10 +17,15 @@ from mini_graph.model import (
     LinkedEntity,
     Message,
     NAME_SERVER,
+    EXPIRATION_DATE,
+    NETWORK,
+    REGISTRAR,
+    REGISTRATION_DATE,
     SPF_RESULT,
     SUBDOMAIN,
     TXT_RECORD,
 )
+from mini_graph.rdap import MAX_IP_LOOKUPS, lookup_domain as lookup_domain_rdap, lookup_ip as lookup_ip_rdap
 from mini_graph.subdomains import lookup_subdomains
 
 # Type names match the transform server's entity identifiers so the two
@@ -30,12 +35,14 @@ IPV4 = "maltego.IPv4Address"
 MX_RECORD = "maltego.MXRecord"
 
 
-def domain_to_dns(entity, limit=100, include_subdomains=False):
+def domain_to_dns(entity, limit=100, include_subdomains=False, include_rdap=False):
     """Accept one Domain entity and return a LinkedEntity list plus messages.
 
     limit is the result slider: stop after this many new entities.
     include_subdomains asks crt.sh for certificate names. The default is
     off, and that path does not call crt.sh.
+    include_rdap asks the public RDAP bootstrap for registration and
+    network data. The default is off, and that path does not call RDAP.
     """
     hostname = normalize_domain(entity.value)
     if not hostname:
@@ -179,4 +186,84 @@ def domain_to_dns(entity, limit=100, include_subdomains=False):
     elif produced < total:
         messages.append(Message("Result slider truncated the remaining records.", "Inform"))
 
+    # RDAP is added after the slider math, so it does not change which DNS
+    # nodes were kept. It runs only when the CLI flag asked for it.
+    if include_rdap:
+        _attach_rdap(hostname, linked, messages)
+
     return linked, messages
+
+
+def _attach_rdap(hostname, linked, messages):
+    """Add registrar, date, and network nodes. A failed query becomes a note."""
+    info, reason = lookup_domain_rdap(hostname)
+    if reason:
+        messages.append(Message(f"RDAP lookup failed for {hostname}: {reason}", "Inform"))
+    elif info:
+        if info["registrar"]:
+            properties = {}
+            if info["status"]:
+                properties["status"] = ", ".join(info["status"])
+            if info["last_changed"]:
+                properties["last_changed"] = info["last_changed"]
+            linked.append(
+                LinkedEntity(
+                    Entity(
+                        REGISTRAR,
+                        info["registrar"],
+                        properties=properties,
+                        display=f"Registrar for {hostname}",
+                    ),
+                    "REGISTRAR",
+                )
+            )
+        if info["registered"]:
+            linked.append(
+                LinkedEntity(
+                    Entity(
+                        REGISTRATION_DATE,
+                        info["registered"],
+                        display=f"Registered on {info['registered']}",
+                    ),
+                    "REGISTERED",
+                )
+            )
+        if info["expires"]:
+            linked.append(
+                LinkedEntity(
+                    Entity(
+                        EXPIRATION_DATE,
+                        info["expires"],
+                        display=f"Expires on {info['expires']}",
+                    ),
+                    "EXPIRES",
+                )
+            )
+
+    ip_entities = [item.entity for item in linked if item.link_label in {"A", "AAAA"}]
+    for ip_entity in ip_entities[:MAX_IP_LOOKUPS]:
+        network, reason = lookup_ip_rdap(ip_entity.value)
+        if reason:
+            messages.append(Message(f"RDAP lookup failed for {ip_entity.value}: {reason}", "Inform"))
+            continue
+        if not network or not network["label"]:
+            continue
+        properties = {}
+        if network["start"]:
+            properties["start"] = network["start"]
+        if network["end"]:
+            properties["end"] = network["end"]
+        if network["cidr"]:
+            properties["cidr"] = network["cidr"]
+        linked.append(
+            LinkedEntity(
+                Entity(
+                    NETWORK,
+                    network["label"],
+                    properties=properties,
+                    display=f"Network for {ip_entity.value}",
+                ),
+                "NETWORK",
+                source_id=ip_entity.id,
+            )
+        )

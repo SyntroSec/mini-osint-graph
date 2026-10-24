@@ -11,9 +11,10 @@ Reads DNS records for one domain and shows them as a graph. `mini_graph` prints 
 - **SPF.** Present when one of those TXT strings starts with `v=spf1`, otherwise missing. The node value is `present` or `missing`.
 - **DMARC.** A TXT lookup of `_dmarc.<domain>`. Present when a string starts with `v=dmarc1`, otherwise missing.
 - **Subdomains.** `--subdomains` asks crt.sh for certificate names and adds each one as a `subdomain` node with a `--SUBDOMAIN-->` edge. Those names are not resolved. Without the flag, this step does not run.
-- **Text graph.** One domain node, then a line per link: `--A-->`, `--MX-->`, `--AAAA-->`, `--NS-->`, `--TXT-->`, `--SPF-->`, `--DMARC-->`. With `--subdomains`, `--SUBDOMAIN-->` lines are included too. The last line is a node and edge count. Notes are printed as `[Inform]` or `[PartialError]`.
+- **RDAP.** `--rdap` asks the public RDAP bootstrap for the registrar, registration date, and expiration date, and for the network block of each A and AAAA address already found (at most 10 addresses). Edges are `--REGISTRAR-->`, `--REGISTERED-->`, `--EXPIRES-->`, and, under each address, `--NETWORK-->`. No registrant name, email, phone, or address is printed. Without the flag, this step does not run.
+- **Text graph.** One domain node, then a line per link: `--A-->`, `--MX-->`, `--AAAA-->`, `--NS-->`, `--TXT-->`, `--SPF-->`, `--DMARC-->`. With `--subdomains`, `--SUBDOMAIN-->` lines are included too. With `--rdap`, the registration lines are included, and a network line is indented under the address it belongs to. The last line is a node and edge count. Notes are printed as `[Inform]` or `[PartialError]`.
 - **HTML graph.** `--html FILE` writes one HTML file. The page background is `#ffffff`. The script is inlined, so the file does not need a network connection to draw.
-- **Result limit.** The optional integer after the domain (default `100`) caps how many A, MX, AAAA, NS, and TXT nodes are added. With `--subdomains`, subdomain nodes count toward that same cap. SPF and DMARC are still added after that cap.
+- **Result limit.** The optional integer after the domain (default `100`) caps how many A, MX, AAAA, NS, and TXT nodes are added. With `--subdomains`, subdomain nodes count toward that same cap. SPF and DMARC are still added after that cap. With `--rdap`, the registration and network nodes are also added after that cap.
 - **Local transform.** `project.py local domaintodns <domain>` prints XML for A and MX only. It does not emit AAAA, NS, TXT, SPF, or DMARC.
 - **Local HTTP server.** `samples/serve_local.py` serves that same A/MX transform on `127.0.0.1:8080`.
 
@@ -54,13 +55,19 @@ Prints the same text graph, then writes `out.html` and prints `Wrote out.html`. 
 .\venv\Scripts\python.exe -m mini_graph -h
 ```
 
-Prints `Usage: python -m mini_graph <domain> [limit] [--html FILE] [--subdomains]` and exits with code 2. `--help` does the same. A non-integer limit prints `Limit must be an integer.`
+Prints `Usage: python -m mini_graph <domain> [limit] [--html FILE] [--subdomains] [--rdap]` and exits with code 2. `--help` does the same. A non-integer limit prints `Limit must be an integer.`
 
 ```text
 .\venv\Scripts\python.exe -m mini_graph example.com --subdomains
 ```
 
-Looks up the same DNS records, then queries crt.sh at `https://crt.sh/?q=%25.example.com&output=json`. crt.sh is a third-party search over public Certificate Transparency logs: the `%` query asks for names that appeared on certificates for that domain. Each kept name is a `subdomain` node linked with `--SUBDOMAIN-->`. The tool does not resolve those names. The list can be slow to return and is incomplete: a name is missing when no logged certificate contains it, and crt.sh can time out or return an error. A failure prints `[Inform] subdomain lookup failed: <reason>` and the DNS nodes are still shown. `--subdomains` can be combined with a limit and with `--html out.html`.
+Looks up the same DNS records, then queries crt.sh at `https://crt.sh/?q=%25.example.com&output=json`. crt.sh is a third-party search over public Certificate Transparency logs: the `%` query asks for names that appeared on certificates for that domain. Each kept name is a `subdomain` node linked with `--SUBDOMAIN-->`. The tool does not resolve those names. The list can be slow to return and is incomplete: a name is missing when no logged certificate contains it, and crt.sh can time out or return an error. A failure prints `[Inform] subdomain lookup failed: <reason>` and the DNS nodes are still shown. `--subdomains` can be combined with a limit, with `--rdap`, and with `--html out.html`.
+
+```text
+.\venv\Scripts\python.exe -m mini_graph example.com --rdap
+```
+
+Looks up the same DNS records, then queries RDAP. RDAP (Registration Data Access Protocol) is the structured replacement for WHOIS. This tool uses the public bootstrap at `https://rdap.org/domain/example.com` and `https://rdap.org/ip/<address>`. rdap.org redirects to the registry that publishes that object. The service is run by third parties, it can be slow, and it applies rate limits: HTTP 429 means slow down, and a failure is printed as `[Inform] RDAP lookup failed for <target>: <reason>` while the DNS nodes stay on the graph. The printed domain fields are the registrar name, the registration date, the expiration date, the last-changed date, and the status values. The network node value looks like `NET-NAME (US)`. When the response has no country, the CIDR or the start and end addresses are used instead, so two blocks that share a name stay separate. The CIDR or the address range is also printed beside the node. Personal contact data is not printed. At most 10 address lookups are sent per run. `--rdap` can be combined with `--subdomains` and `--html out.html`.
 
 ```text
 .\venv\Scripts\python.exe project.py list
@@ -120,9 +127,9 @@ There is no MX node: the mail exchange was `.`, which this project treats as a n
 
 ### HTML graph node colors
 
-`mini_graph/html_export.py` does not assign a hex color to each type. It sets the page background to `#ffffff` and sets each node's `group` to its entity type. Nodes are dots. Hover text is the type. For SPF and DMARC, the hover text also includes the record string when one was found. A label longer than 80 characters is cut to 77 characters plus `...` in the HTML only; the text graph still prints the full value.
+`mini_graph/html_export.py` does not assign a hex color to each type. It sets the page background to `#ffffff` and sets each node's `group` to its entity type. Nodes are dots. Hover text is the type. For SPF and DMARC, the hover text also includes the record string when one was found. For a registrar node it can include status and the last-changed date. For a network node it can include the CIDR or the address range. A label longer than 80 characters is cut to 77 characters plus `...` in the HTML only; the text graph still prints the full value.
 
-Because a group is set, pyvis does not apply its fallback node color `#97c2fc` (`pyvis/network.py`, `add_node`). The inlined vis-network 9.1.2 script then colors groups from `_defaultGroups`, in the order each group name first appears. Nodes are added in this order: domain, A, MX, AAAA, NS, TXT, SPF, DMARC. With `--subdomains`, `subdomain` nodes are inserted after TXT and before SPF, so SPF and DMARC each move one row down. A type that is absent does not take a slot, so later types move up the palette. Without `--subdomains`, the order and colors are unchanged.
+Because a group is set, pyvis does not apply its fallback node color `#97c2fc` (`pyvis/network.py`, `add_node`). The inlined vis-network 9.1.2 script then colors groups from `_defaultGroups`, in the order each group name first appears. Nodes are added in this order: domain, A, MX, AAAA, NS, TXT, SPF, DMARC. With `--subdomains`, `subdomain` nodes are inserted after TXT and before SPF, so SPF and DMARC each move one row down. With `--rdap`, `registrar`, `registration-date`, `expiration-date`, and `network` are appended after those groups, so the earlier colors stay in place and the new types take the next rows. A type that is absent does not take a slot, so later types move up the palette. Without `--subdomains` and without `--rdap`, the order and colors are unchanged.
 
 Background colors, in that first-seen order:
 
@@ -141,13 +148,13 @@ For the `example.com` run above there is no MX node, so the colors are: domain `
 
 ## How it works
 
-An **entity** is one fact: a type, a value, and optional properties. The starting entity is `maltego.Domain` with the domain you typed. New types used only by `mini_graph` are `ipv6-address`, `name-server`, `txt-record`, `spf-result`, `dmarc-result`, and, when `--subdomains` is set, `subdomain`. A and MX keep the names `maltego.IPv4Address` and `maltego.MXRecord`.
+An **entity** is one fact: a type, a value, and optional properties. The starting entity is `maltego.Domain` with the domain you typed. New types used only by `mini_graph` are `ipv6-address`, `name-server`, `txt-record`, `spf-result`, `dmarc-result`, and, when `--subdomains` is set, `subdomain`. When `--rdap` is set, the extra types are `registrar`, `registration-date`, `expiration-date`, and `network`. A and MX keep the names `maltego.IPv4Address` and `maltego.MXRecord`.
 
 A **transform** reads one entity and returns new entities plus a link label. It does not draw the graph. `domain_to_dns` does that for the text and HTML tools. `transforms/DomainToDns.py` does it for the local command and the HTTP server, and it returns only A and MX.
 
-A **graph** stores entities as nodes and labels as directed edges. `InvestigationGraph` is a networkx `DiGraph`. The arrow goes from the domain to each record. The same type and value are one node.
+A **graph** stores entities as nodes and labels as directed edges. `InvestigationGraph` is a networkx `DiGraph`. The arrow goes from the domain to each record. A network arrow goes from the IP address to its network node. The same type and value are one node.
 
-DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 second per-try timeout and a 5 second lifetime. AAAA, NS, TXT, and DMARC then use a 5 second timeout and a 20 second lifetime. Those later queries do not replace an A or MX result that already came back. `--subdomains` is a separate HTTPS request to crt.sh with a 15 second timeout. It does not send a DNS query for each name.
+DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 second per-try timeout and a 5 second lifetime. AAAA, NS, TXT, and DMARC then use a 5 second timeout and a 20 second lifetime. Those later queries do not replace an A or MX result that already came back. `--subdomains` is a separate HTTPS request to crt.sh with a 15 second timeout. It does not send a DNS query for each name. `--rdap` is a separate HTTPS request to rdap.org with a 10 second timeout. Redirects are followed. Contact cards in the RDAP response are not copied onto the graph.
 
 ## Troubleshooting
 
@@ -159,7 +166,7 @@ DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 se
 
 **DMARC.** `present` means a TXT record at `_dmarc.<domain>` starts with `v=dmarc1`. `missing` means that query succeeded and no string matched, including when the `_dmarc` name does not exist.
 
-**Other messages.** `Input is not a domain name. Expected a host such as example.com.` means the value was empty, a bare word, or an IPv4 address. `NXDOMAIN: <name> does not exist` means the DNS server says the name is not in the zone. `Result slider truncated the remaining records.` means the limit cut off A or MX records. `subdomain lookup failed: <reason>` means crt.sh timed out, returned an HTTP error, or returned data that was not a JSON list. The DNS nodes from that run are still printed.
+**Other messages.** `Input is not a domain name. Expected a host such as example.com.` means the value was empty, a bare word, or an IPv4 address. `NXDOMAIN: <name> does not exist` means the DNS server says the name is not in the zone. `Result slider truncated the remaining records.` means the limit cut off A or MX records. `subdomain lookup failed: <reason>` means crt.sh timed out, returned an HTTP error, or returned data that was not a JSON list. The DNS nodes from that run are still printed. `RDAP lookup failed for <target>: <reason>` means rdap.org timed out, returned an HTTP error such as 404, 429, or 5xx, or returned data that was not a JSON object. Other RDAP nodes from that run are still printed.
 
 ## Responsible use
 
@@ -176,6 +183,6 @@ Only use this tool on domains you own or are authorized to assess.
 
 ## Limitations
 
-The tool looks up one hostname. Subdomain discovery is passive only, via crt.sh, and only when `--subdomains` is set. It does not resolve those names, brute-force labels, or use a word list. It does not query WHOIS. It does not walk name servers for a zone transfer. DNS records use only the DNS servers configured on this machine. The local transform and the HTTP server return A and MX only; AAAA, NS, TXT, SPF, DMARC, and subdomains are in `mini_graph`.
+The tool looks up one hostname. Subdomain discovery is passive only, via crt.sh, and only when `--subdomains` is set. It does not resolve those names, brute-force labels, or use a word list. Registration and network data are RDAP only, no raw WHOIS, and only when `--rdap` is set. It does not walk name servers for a zone transfer. DNS records use only the DNS servers configured on this machine. The local transform and the HTTP server return A and MX only; AAAA, NS, TXT, SPF, DMARC, subdomains, and RDAP are in `mini_graph`.
 
 This project uses third-party open-source libraries (maltego-trx, networkx, pyvis, requests), see NOTICE.md for details, and is not affiliated with any company.

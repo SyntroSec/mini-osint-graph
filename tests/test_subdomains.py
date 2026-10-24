@@ -135,12 +135,13 @@ def test_cli_subdomains_flag(monkeypatch, capsys, tmp_path):
     )
     _patch_http(monkeypatch, payload=[{"name_value": "www.example.com\nexample.com"}])
 
-    assert _parse_args(["example.com", "--subdomains"]) == ("example.com", 100, None, True)
+    assert _parse_args(["example.com", "--subdomains"]) == ("example.com", 100, None, True, False)
     assert _parse_args(["example.com", "5", "--html", "out.html", "--subdomains"]) == (
         "example.com",
         5,
         "out.html",
         True,
+        False,
     )
 
     html_path = tmp_path / "graph.html"

@@ -5,11 +5,13 @@ Run from the project root:
   python -m mini_graph example.com 5
   python -m mini_graph example.com --html out.html
   python -m mini_graph example.com --subdomains
+  python -m mini_graph example.com --rdap
 
 The second argument is the slider: how many new entities may be added.
 The printed graph includes A, MX, AAAA, NS, TXT, and SPF/DMARC present or missing.
---subdomains also adds certificate names from crt.sh. Without that flag,
-the lookup is only DNS.
+--subdomains also adds certificate names from crt.sh.
+--rdap also adds registration and IP network data.
+Without those flags, the lookup is only DNS.
 The flow is: seed entity, transform, child nodes on the graph.
 """
 
@@ -20,16 +22,17 @@ from mini_graph.dns_transform import DOMAIN, domain_to_dns
 from mini_graph.graph import InvestigationGraph
 from mini_graph.html_export import write_html
 
-USAGE = "Usage: python -m mini_graph <domain> [limit] [--html FILE] [--subdomains]"
+USAGE = "Usage: python -m mini_graph <domain> [limit] [--html FILE] [--subdomains] [--rdap]"
 
 
 def _parse_args(argv):
-    """Split a domain, an optional limit, and optional --html and --subdomains.
+    """Split a domain, an optional limit, and the optional flags.
 
     argv arrives here as sys.argv[1:]. Positional order stays domain, then limit.
     """
     html_path = None
     include_subdomains = False
+    include_rdap = False
     positionals = []
     index = 0
     while index < len(argv):
@@ -43,6 +46,10 @@ def _parse_args(argv):
             continue
         if item == "--subdomains":
             include_subdomains = True
+            index += 1
+            continue
+        if item == "--rdap":
+            include_rdap = True
             index += 1
             continue
         positionals.append(item)
@@ -59,7 +66,7 @@ def _parse_args(argv):
         except ValueError:
             print("Limit must be an integer.")
             return None
-    return positionals[0], limit, html_path, include_subdomains
+    return positionals[0], limit, html_path, include_subdomains, include_rdap
 
 
 def main(argv):
@@ -70,14 +77,19 @@ def main(argv):
     parsed = _parse_args(argv)
     if parsed is None:
         return 2
-    domain, limit, html_path, include_subdomains = parsed
+    domain, limit, html_path, include_subdomains, include_rdap = parsed
 
     graph = InvestigationGraph()
     seed_id = graph.add_seed(DOMAIN, domain)
     # The default transform is domain_to_dns with no extra arguments.
     transform = domain_to_dns
+    options = {}
     if include_subdomains:
-        transform = partial(domain_to_dns, include_subdomains=True)
+        options["include_subdomains"] = True
+    if include_rdap:
+        options["include_rdap"] = True
+    if options:
+        transform = partial(domain_to_dns, **options)
     messages = graph.run_transform(seed_id, transform, limit=limit)
 
     print(graph.render())
