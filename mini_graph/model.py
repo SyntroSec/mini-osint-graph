@@ -14,6 +14,7 @@ NAME_SERVER = "name-server"
 TXT_RECORD = "txt-record"
 SPF_RESULT = "spf-result"
 DMARC_RESULT = "dmarc-result"
+SUBDOMAIN = "subdomain"
 
 
 class Entity:

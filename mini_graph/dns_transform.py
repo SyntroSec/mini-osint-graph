@@ -18,8 +18,10 @@ from mini_graph.model import (
     Message,
     NAME_SERVER,
     SPF_RESULT,
+    SUBDOMAIN,
     TXT_RECORD,
 )
+from mini_graph.subdomains import lookup_subdomains
 
 # Type names match the transform server's entity identifiers so the two
 # tools' graphs can be compared by eye. These constants do not call the library.
@@ -28,10 +30,12 @@ IPV4 = "maltego.IPv4Address"
 MX_RECORD = "maltego.MXRecord"
 
 
-def domain_to_dns(entity, limit=100):
+def domain_to_dns(entity, limit=100, include_subdomains=False):
     """Accept one Domain entity and return a LinkedEntity list plus messages.
 
     limit is the result slider: stop after this many new entities.
+    include_subdomains asks crt.sh for certificate names. The default is
+    off, and that path does not call crt.sh.
     """
     hostname = normalize_domain(entity.value)
     if not hostname:
@@ -113,6 +117,24 @@ def domain_to_dns(entity, limit=100):
         )
         remaining -= 1
 
+    # Subdomain names use the same slider as A, MX, AAAA, NS, and TXT.
+    # They are skipped entirely unless the CLI flag asked for them.
+    subdomain_failure = None
+    if include_subdomains:
+        names, reason = lookup_subdomains(hostname)
+        if reason:
+            subdomain_failure = reason
+        for name in names:
+            if remaining <= 0:
+                break
+            linked.append(
+                LinkedEntity(
+                    Entity(SUBDOMAIN, name, display=f"Subdomain of {hostname}"),
+                    "SUBDOMAIN",
+                )
+            )
+            remaining -= 1
+
     # SPF and DMARC are reported even when the slider has no room left,
     # so a tight limit still says whether each policy is present or missing.
     spf_state = found.get("spf", "missing")
@@ -148,6 +170,8 @@ def domain_to_dns(entity, limit=100):
         ))
     if found.get("dmarc_error"):
         messages.append(Message("DMARC lookup failed.", "Inform"))
+    if subdomain_failure:
+        messages.append(Message(f"subdomain lookup failed: {subdomain_failure}", "Inform"))
     produced = (limit if limit and limit > 0 else 100) - remaining
     total = len(found["addresses"]) + len(found["mail_servers"])
     if produced == 0 and not messages:

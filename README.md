@@ -10,9 +10,10 @@ Reads DNS records for one domain and shows them as a graph. `mini_graph` prints 
 - **TXT.** Apex TXT strings, type `txt-record`.
 - **SPF.** Present when one of those TXT strings starts with `v=spf1`, otherwise missing. The node value is `present` or `missing`.
 - **DMARC.** A TXT lookup of `_dmarc.<domain>`. Present when a string starts with `v=dmarc1`, otherwise missing.
-- **Text graph.** One domain node, then a line per link: `--A-->`, `--MX-->`, `--AAAA-->`, `--NS-->`, `--TXT-->`, `--SPF-->`, `--DMARC-->`. The last line is a node and edge count. Notes are printed as `[Inform]` or `[PartialError]`.
+- **Subdomains.** `--subdomains` asks crt.sh for certificate names and adds each one as a `subdomain` node with a `--SUBDOMAIN-->` edge. Those names are not resolved. Without the flag, this step does not run.
+- **Text graph.** One domain node, then a line per link: `--A-->`, `--MX-->`, `--AAAA-->`, `--NS-->`, `--TXT-->`, `--SPF-->`, `--DMARC-->`. With `--subdomains`, `--SUBDOMAIN-->` lines are included too. The last line is a node and edge count. Notes are printed as `[Inform]` or `[PartialError]`.
 - **HTML graph.** `--html FILE` writes one HTML file. The page background is `#ffffff`. The script is inlined, so the file does not need a network connection to draw.
-- **Result limit.** The optional integer after the domain (default `100`) caps how many A, MX, AAAA, NS, and TXT nodes are added. SPF and DMARC are still added after that cap.
+- **Result limit.** The optional integer after the domain (default `100`) caps how many A, MX, AAAA, NS, and TXT nodes are added. With `--subdomains`, subdomain nodes count toward that same cap. SPF and DMARC are still added after that cap.
 - **Local transform.** `project.py local domaintodns <domain>` prints XML for A and MX only. It does not emit AAAA, NS, TXT, SPF, or DMARC.
 - **Local HTTP server.** `samples/serve_local.py` serves that same A/MX transform on `127.0.0.1:8080`.
 
@@ -25,7 +26,7 @@ python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-This creates the virtual environment and installs the packages listed in `requirements.txt` (`maltego-trx`, `dnspython`, `networkx`, `pyvis`).
+This creates the virtual environment and installs the packages listed in `requirements.txt` (`maltego-trx`, `dnspython`, `networkx`, `pyvis`, `requests`).
 
 The commands below use that environment. Run them from the project root.
 
@@ -53,7 +54,13 @@ Prints the same text graph, then writes `out.html` and prints `Wrote out.html`. 
 .\venv\Scripts\python.exe -m mini_graph -h
 ```
 
-Prints `Usage: python -m mini_graph <domain> [limit] [--html FILE]` and exits with code 2. `--help` does the same. A non-integer limit prints `Limit must be an integer.`
+Prints `Usage: python -m mini_graph <domain> [limit] [--html FILE] [--subdomains]` and exits with code 2. `--help` does the same. A non-integer limit prints `Limit must be an integer.`
+
+```text
+.\venv\Scripts\python.exe -m mini_graph example.com --subdomains
+```
+
+Looks up the same DNS records, then queries crt.sh at `https://crt.sh/?q=%25.example.com&output=json`. crt.sh is a third-party search over public Certificate Transparency logs: the `%` query asks for names that appeared on certificates for that domain. Each kept name is a `subdomain` node linked with `--SUBDOMAIN-->`. The tool does not resolve those names. The list can be slow to return and is incomplete: a name is missing when no logged certificate contains it, and crt.sh can time out or return an error. A failure prints `[Inform] subdomain lookup failed: <reason>` and the DNS nodes are still shown. `--subdomains` can be combined with a limit and with `--html out.html`.
 
 ```text
 .\venv\Scripts\python.exe project.py list
@@ -115,7 +122,7 @@ There is no MX node: the mail exchange was `.`, which this project treats as a n
 
 `mini_graph/html_export.py` does not assign a hex color to each type. It sets the page background to `#ffffff` and sets each node's `group` to its entity type. Nodes are dots. Hover text is the type. For SPF and DMARC, the hover text also includes the record string when one was found. A label longer than 80 characters is cut to 77 characters plus `...` in the HTML only; the text graph still prints the full value.
 
-Because a group is set, pyvis does not apply its fallback node color `#97c2fc` (`pyvis/network.py`, `add_node`). The inlined vis-network 9.1.2 script then colors groups from `_defaultGroups`, in the order each group name first appears. Nodes are added in this order: domain, A, MX, AAAA, NS, TXT, SPF, DMARC. A type that is absent does not take a slot, so later types move up the palette.
+Because a group is set, pyvis does not apply its fallback node color `#97c2fc` (`pyvis/network.py`, `add_node`). The inlined vis-network 9.1.2 script then colors groups from `_defaultGroups`, in the order each group name first appears. Nodes are added in this order: domain, A, MX, AAAA, NS, TXT, SPF, DMARC. With `--subdomains`, `subdomain` nodes are inserted after TXT and before SPF, so SPF and DMARC each move one row down. A type that is absent does not take a slot, so later types move up the palette. Without `--subdomains`, the order and colors are unchanged.
 
 Background colors, in that first-seen order:
 
@@ -134,13 +141,13 @@ For the `example.com` run above there is no MX node, so the colors are: domain `
 
 ## How it works
 
-An **entity** is one fact: a type, a value, and optional properties. The starting entity is `maltego.Domain` with the domain you typed. New types used only by `mini_graph` are `ipv6-address`, `name-server`, `txt-record`, `spf-result`, and `dmarc-result`. A and MX keep the names `maltego.IPv4Address` and `maltego.MXRecord`.
+An **entity** is one fact: a type, a value, and optional properties. The starting entity is `maltego.Domain` with the domain you typed. New types used only by `mini_graph` are `ipv6-address`, `name-server`, `txt-record`, `spf-result`, `dmarc-result`, and, when `--subdomains` is set, `subdomain`. A and MX keep the names `maltego.IPv4Address` and `maltego.MXRecord`.
 
 A **transform** reads one entity and returns new entities plus a link label. It does not draw the graph. `domain_to_dns` does that for the text and HTML tools. `transforms/DomainToDns.py` does it for the local command and the HTTP server, and it returns only A and MX.
 
 A **graph** stores entities as nodes and labels as directed edges. `InvestigationGraph` is a networkx `DiGraph`. The arrow goes from the domain to each record. The same type and value are one node.
 
-DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 second per-try timeout and a 5 second lifetime. AAAA, NS, TXT, and DMARC then use a 5 second timeout and a 20 second lifetime. Those later queries do not replace an A or MX result that already came back.
+DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 second per-try timeout and a 5 second lifetime. AAAA, NS, TXT, and DMARC then use a 5 second timeout and a 20 second lifetime. Those later queries do not replace an A or MX result that already came back. `--subdomains` is a separate HTTPS request to crt.sh with a 15 second timeout. It does not send a DNS query for each name.
 
 ## Troubleshooting
 
@@ -152,7 +159,11 @@ DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 se
 
 **DMARC.** `present` means a TXT record at `_dmarc.<domain>` starts with `v=dmarc1`. `missing` means that query succeeded and no string matched, including when the `_dmarc` name does not exist.
 
-**Other messages.** `Input is not a domain name. Expected a host such as example.com.` means the value was empty, a bare word, or an IPv4 address. `NXDOMAIN: <name> does not exist` means the DNS server says the name is not in the zone. `Result slider truncated the remaining records.` means the limit cut off A or MX records.
+**Other messages.** `Input is not a domain name. Expected a host such as example.com.` means the value was empty, a bare word, or an IPv4 address. `NXDOMAIN: <name> does not exist` means the DNS server says the name is not in the zone. `Result slider truncated the remaining records.` means the limit cut off A or MX records. `subdomain lookup failed: <reason>` means crt.sh timed out, returned an HTTP error, or returned data that was not a JSON list. The DNS nodes from that run are still printed.
+
+## Responsible use
+
+Only use this tool on domains you own or are authorized to assess.
 
 ## Running tests
 
@@ -165,6 +176,6 @@ DNS queries use this machine's resolver through `dnspython`. A and MX use a 2 se
 
 ## Limitations
 
-The tool looks up one hostname. It does not discover subdomains, and it does not query WHOIS. It does not walk name servers for a zone transfer or try a word list. It uses only the DNS servers configured on this machine. The local transform and the HTTP server return A and MX only; AAAA, NS, TXT, SPF, and DMARC are in `mini_graph`.
+The tool looks up one hostname. Subdomain discovery is passive only, via crt.sh, and only when `--subdomains` is set. It does not resolve those names, brute-force labels, or use a word list. It does not query WHOIS. It does not walk name servers for a zone transfer. DNS records use only the DNS servers configured on this machine. The local transform and the HTTP server return A and MX only; AAAA, NS, TXT, SPF, DMARC, and subdomains are in `mini_graph`.
 
-This project uses third-party open-source libraries (maltego-trx, networkx, pyvis), see NOTICE.md for details, and is not affiliated with any company.
+This project uses third-party open-source libraries (maltego-trx, networkx, pyvis, requests), see NOTICE.md for details, and is not affiliated with any company.
