@@ -1,9 +1,9 @@
-"""mini_graph — entity, transform və qraf.
+"""mini_graph — entity, transform, and graph.
 
-Üç anlayışı kiçik Python obyektləri ilə təkrarlayır:
-  Entity   — tip, dəyər, property (model.py)
-  Transform — bir entity-dən yeni entity-lər (dns_transform.py)
-  Graph    — düyünlər və onlar arasındakı linklər (graph.py, networkx)
+Repeats the three ideas as small Python objects:
+  Entity    — type, value, properties (model.py)
+  Transform — new entities from one entity (dns_transform.py)
+  Graph     — nodes and the links between them (graph.py, networkx)
 
-Qraf klienti və XML protokolu bu paketə daxil deyil.
+The graph client and the XML protocol are not part of this package.
 """

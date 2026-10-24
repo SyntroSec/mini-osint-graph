@@ -1,9 +1,9 @@
-"""mini_graph/graph.py — entity-ləri və linkləri saxlayan networkx qrafı.
+"""mini_graph/graph.py — a networkx graph of entities and links.
 
-Qraf klientdə yaşayır: transform entity qaytarır, klient
-hər birini giriş düyününə bağlayır. Burada həmin addımı InvestigationGraph
-edir. networkx DiGraph istiqamətli qrafdır; ox giriş entity-sindən
-tapılan entity-yə gedir.
+The graph lives in the client: a transform returns entities, and the client
+links each one to the input node. InvestigationGraph does that step here.
+A networkx DiGraph is a directed graph; the arrow goes from the input
+entity to the entity that was found.
 """
 
 import networkx as nx
@@ -12,13 +12,13 @@ from mini_graph.model import Entity
 
 
 class InvestigationGraph:
-    """Düyünlər Entity-dir, tillər isə transformun link yazısıdır."""
+    """Nodes are entities, and edges are the transform's link labels."""
 
     def __init__(self):
         self.graph = nx.DiGraph()
 
     def add_entity(self, entity):
-        """Entity-ni düyün kimi əlavə edir. Eyni id artıq varsa, yenisini yaratmır."""
+        """Add an entity as a node. If the same id already exists, do not create another."""
         if entity.id not in self.graph:
             self.graph.add_node(
                 entity.id,
@@ -31,14 +31,14 @@ class InvestigationGraph:
         return entity.id
 
     def add_seed(self, type_name, value):
-        """İstintaqın başlanğıc düyünü. Qrafa əllə qoyulan ilk entity."""
+        """Starting node of an investigation. The first entity placed on the graph by hand."""
         return self.add_entity(Entity(type_name, value))
 
     def run_transform(self, source_id, transform, limit=100):
-        """Seçilmiş düyündə transformu işlədir və nəticələri qrafa bağlayır.
+        """Run a transform on the selected node and attach the results to the graph.
 
         transform(entity, limit) -> (linked_entities, messages)
-        Hər nəticə yeni (və ya mövcud) düyün olur və source_id-dən ora till gəlir.
+        Each result becomes a new (or existing) node, with an edge from source_id.
         """
         data = self.graph.nodes[source_id]
         source = Entity(data["type"], data["value"], data.get("properties"), data.get("weight", 100))
@@ -46,13 +46,13 @@ class InvestigationGraph:
 
         for item in linked:
             target_id = self.add_entity(item.entity)
-            # Eyni cüt və eyni yazı təkrar till olmasın.
+            # Do not add a second edge for the same pair and the same label.
             if not self.graph.has_edge(source_id, target_id):
                 self.graph.add_edge(source_id, target_id, label=item.link_label)
         return messages
 
     def render(self):
-        """Qrafı mətn ağacı kimi qaytarır: düyün, ondan çıxan linklər, say."""
+        """Return the graph as a text tree: node, outgoing links, and counts."""
         lines = []
         roots = [node for node in self.graph.nodes if self.graph.in_degree(node) == 0]
         if not roots:

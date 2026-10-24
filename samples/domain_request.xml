@@ -1,19 +1,19 @@
 <!--
 samples/domain_request.xml
 
-Bu fayl açıq transform protokolundakı sorğu gövdəsidir.
-Mənbə: "Writing Transforms" sənədindəki MaltegoTransformRequestMessage
-nümunəsi, bu layihənin maltego.Domain transformuna uyğunlaşdırılıb.
+This file is a request body from the open transform protocol.
+Source: the MaltegoTransformRequestMessage sample in the "Writing Transforms"
+document, adapted to this project's maltego.Domain transform.
 
-Klient və ya TDS bunu HTTP POST ilə transform serverinə göndərir:
+The client or TDS sends it to the transform server with HTTP POST:
   POST /run/domaintodns HTTP/1.1
   Content-Type: application/xml
 
-maltego-trx gövdəni MaltegoMsg obyektinə çevirir. Bizim transform
-yalnız Value və Limits@SoftLimit sahələrini işlədir. Genealogy və
-AdditionalFields protokolda var, DomainToDns onları oxumur.
+maltego-trx turns the body into a MaltegoMsg object. Our transform
+uses only Value and Limits@SoftLimit. Genealogy and
+AdditionalFields are part of the protocol; DomainToDns does not read them.
 
-Bu fayl yalnız 127.0.0.1-də işləyən öz transform serverini yoxlamaq üçündür.
+This file is only for checking your own transform server on 127.0.0.1.
 -->
 <MaltegoMessage>
   <MaltegoTransformRequestMessage>

@@ -1,13 +1,13 @@
-"""extensions.py — transformun qraf klientində görünən pasportu.
+"""extensions.py — the transform passport shown in the graph client.
 
-Transformun özü transforms/DomainToDns.py içindədir. Bu fayl yalnız
-metaməlumat saxlayır: kim yazıb, hansı entity tipi qəbul olunur, CSV və
-local.mtz yaradılarkən hansı ad göstərilsin.
+The transform itself lives in transforms/DomainToDns.py. This file only
+stores metadata: who wrote it, which entity type it accepts, and which
+name to show when the CSV and local.mtz are built.
 
-host_url lokal .mtz işə salınanda istifadə olunmur. O, eyni kod sonradan
-transform serveri kimi qaçanda (python project.py runserver) CSV-dəki
-/run/<ad> ünvanının əsasıdır. Server 127.0.0.1-də qalır — bu, tək
-bu maşının öz transformudur.
+host_url is not used when the local .mtz runs. It is the base of the
+/run/<name> URL in the CSV if the same code later runs as a transform
+server (python project.py runserver). The server stays on 127.0.0.1 —
+this transform belongs to this machine only.
 """
 
 from maltego_trx.decorator_registry import TransformRegistry

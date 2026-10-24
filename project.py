@@ -1,18 +1,19 @@
-"""project.py — bu layihənin giriş nöqtəsi.
+"""project.py — entry point for this project.
 
-Lokal transform ayrıca server açmır. Klient bu faylı bir dəfə
-işə salır, giriş entity-sinin dəyərini arqument verir və stdout-dakı XML-i
-oxuyub qrafa yeni düyünlər əlavə edir.
+A local transform does not open a separate server. The client runs this file
+once, passes the input entity value as an argument, reads the XML on stdout,
+and adds new nodes to the graph.
 
-Əmrlər (maltego-trx-in öz handle_run müqaviləsi):
+Commands (maltego-trx handle_run contract):
   python project.py list
   python project.py local domaintodns example.com
   python project.py runserver
 
-İlk iki sətir hər işə düşəndə transforms.csv, settings.csv və local.mtz
-yeniləyir. local.mtz qraf klientinə Import Config ilə yüklənən lokal paketdir.
-command sahəsi bu virtual mühitin python.exe faylına bağlanır ki, klient
-sistem Python-unu yox, kitabxananın quraşdırıldığı mühiti çağırsın.
+The lines above regenerate transforms.csv, settings.csv, and local.mtz on
+every run. local.mtz is the local package loaded into the graph client with
+Import Config. The command field points at this virtual environment's
+python.exe so the client uses the environment where the library is installed,
+rather than the system Python.
 """
 
 import locale
@@ -34,10 +35,10 @@ registry.write_transforms_config(
     config_path=TRANSFORMS_CSV,
     include_output_entities=True,
 )
-# Kitabxana server ünvanını os.path.join ilə yazır. Windows-da bu,
-# http://127.0.0.1:8080/run/domaintodns əvəzinə tərs slash qoyur.
-# CSV kitabxananın öz encoding-i ilə açılır (burada Windows kod səhifəsi).
-# Lokal .mtz həmin ünvanı işlətmir; oxunuş düzgün qalsın deyə yalnız slash-ı çeviririk.
+# The library builds the server URL with os.path.join. On Windows that writes
+# a backslash instead of http://127.0.0.1:8080/run/domaintodns.
+# The CSV is opened with the library's own encoding (the Windows code page here).
+# The local .mtz does not use that URL; only the slash is rewritten so the CSV stays readable.
 csv_encoding = locale.getpreferredencoding(False)
 with open(TRANSFORMS_CSV, encoding=csv_encoding) as handle:
     csv_text = handle.read().replace("\\", "/")

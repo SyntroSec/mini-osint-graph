@@ -1,11 +1,11 @@
-"""mini_graph/__main__.py — alətin əmr sətri.
+"""mini_graph/__main__.py — command line for the tool.
 
-İşə salma, layihə kökündən:
+Run from the project root:
   python -m mini_graph example.com
   python -m mini_graph example.com 5
 
-İkinci arqument slider-dir: ən çox neçə yeni entity qrafa düşsün.
-Axın belədir: seed entity, transform, qrafda uşaq düyünlər.
+The second argument is the slider: how many new entities may be added.
+The flow is: seed entity, transform, child nodes on the graph.
 """
 
 import sys
@@ -15,7 +15,7 @@ from mini_graph.graph import InvestigationGraph
 
 
 def main(argv):
-    # argv buraya sys.argv[1:] kimi gəlir: ilk element domen, ikincisi limit.
+    # argv arrives here as sys.argv[1:]: the first item is the domain, the second is the limit.
     if not argv or argv[0] in {"-h", "--help"}:
         print("Usage: python -m mini_graph <domain> [limit]")
         return 2

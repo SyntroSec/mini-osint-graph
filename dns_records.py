@@ -1,10 +1,10 @@
-"""dns_records.py — domen adından A və MX qeydlərini oxuyan ortaq funksiyalar.
+"""dns_records.py — shared functions that read A and MX records for a domain.
 
-Bu fayl transform protokolunu bilmir. Onu iki yer çağırır:
-  transforms/DomainToDns.py — nəticəni cavab XML-inə çevirir
-  mini_graph — nəticəni networkx qrafına çevirir
+This file does not know the transform protocol. Two callers use it:
+  transforms/DomainToDns.py — turns the result into response XML
+  mini_graph — turns the result into a networkx graph
 
-Sorğu bu maşının öz DNS həlledicisinə gedir. Zona köçürməsi və ad siyahısı yoxdur.
+The query goes to this machine's own DNS resolver. There is no zone transfer and no name list.
 """
 
 import re
@@ -13,8 +13,8 @@ from urllib.parse import urlparse
 import dns.exception
 import dns.resolver
 
-# Ən azı bir nöqtəli, hər etiketi hərf/rəqəm olan host adı.
-# Tək söz ("localhost") və boşluqlu mətn buraxılmır.
+# A hostname with at least one dot and labels made of letters or digits.
+# A single word ("localhost") and text with spaces are rejected.
 _HOSTNAME = re.compile(
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+"
 )
@@ -22,11 +22,11 @@ _IPV4 = re.compile(r"\d{1,3}(?:\.\d{1,3}){3}")
 
 
 def normalize_domain(raw):
-    """Entity dəyərini DNS-ə verilə bilən ASCII host adına çevirir.
+    """Turn an entity value into an ASCII hostname that can be sent to DNS.
 
-    "https://Example.COM/path" kimi mətndən yalnız host götürülür.
-    IDN adlar punycode-a çevrilir. Yararsız dəyərdə boş sətir qayıdır
-    və heç bir sorğu getmir.
+    From text such as "https://Example.COM/path", only the host is kept.
+    IDN names are converted to punycode. An unusable value returns an empty
+    string and no query is sent.
     """
     value = (raw or "").strip().lower()
     if "://" in value:
@@ -48,11 +48,11 @@ def normalize_domain(raw):
 
 
 def _query(resolver, hostname, record_type):
-    """Bir DNS tipini sorğulayır.
+    """Query one DNS type.
 
-    Qayıdış: (qeydlər, qeyd_yoxdur).
-    NXDOMAIN buradan xüsusi çıxır — adın özü yoxdursa ikinci tipi
-    sorğulamağın mənası yoxdur, onu çağıran görür.
+    Returns (records, no_answer).
+    NXDOMAIN is raised here — if the name itself does not exist, querying
+    the second type is pointless, and the caller sees that.
     """
     try:
         return list(resolver.resolve(hostname, record_type)), False
@@ -65,13 +65,13 @@ def _query(resolver, hostname, record_type):
 
 
 def lookup_domain(hostname):
-    """Sistem DNS həlledicisindən A və MX oxuyur.
+    """Read A and MX records from the system DNS resolver.
 
-    Nəticə lüğəti:
-      addresses — IPv4 sətirləri
-      mail_servers — (prioritet, host) cütləri, prioritet artan sırada
-      notes — qısa məlumatlar (məsələn bu tipdə qeyd yoxdur)
-      error — bütün sorğunu dayandıran səbəb, yoxdursa None
+    Result dictionary:
+      addresses — IPv4 strings
+      mail_servers — (priority, host) pairs, priority ascending
+      notes — short notes (for example, no records of this type)
+      error — reason that stops the whole lookup, or None
     """
     resolver = dns.resolver.Resolver()
     resolver.timeout = 2.0
@@ -114,10 +114,10 @@ def lookup_domain(hostname):
     mail_servers = []
     null_mx = False
     for record in answers:
-        # MX exchange "host." formasındadır; son nöqtə entity dəyərinə düşməməlidir.
+        # An MX exchange looks like "host."; the trailing dot must not become the entity value.
         host = str(record.exchange).rstrip(".")
         if not host:
-            # RFC 7505: exchange "." deməkdir — domen poçt qəbul etmir.
+            # RFC 7505: an exchange of "." means the domain does not accept mail.
             null_mx = True
             continue
         mail_servers.append((int(record.preference), host))

@@ -1,15 +1,15 @@
-"""transforms/DomainToDns.py — domen entity-sindən DNS A və MX entity-ləri.
+"""transforms/DomainToDns.py — DNS A and MX entities from a domain entity.
 
-Axın (Addım 1-dəki model):
-  1. Qrafdakı bir maltego.Domain düyününü bu transformə verir.
-  2. create_entities yalnız request.Value-ni (domen adını) oxuyur.
-     DNS sorğusu dns_records.py-dədir; bu fayl nəticəni entity-yə çevirir.
-  3. Hər A qeydi maltego.IPv4Address, hər MX qeydi maltego.MXRecord olur.
-  4. Transform qraf çəkmir. Qraf klienti qaytarılan hər entity-ni
-     giriş düyününə link ilə bağlayır. Linkin yazısı setLinkLabel ilə gəlir.
+Flow:
+  1. A maltego.Domain node on the graph is given to this transform.
+  2. create_entities reads only request.Value (the domain name).
+     The DNS query lives in dns_records.py; this file turns the result into entities.
+  3. Each A record becomes maltego.IPv4Address, and each MX record becomes maltego.MXRecord.
+  4. The transform does not draw the graph. The graph client links every returned
+     entity to the input node. The link text comes from setLinkLabel.
 
-Fayl adı DomainToDns, sinif adı da DomainToDns olmalıdır — maltego-trx
-transformu bu uyğunluqla tapır. Lokal ad: domaintodns.
+The file name must be DomainToDns and the class name must be DomainToDns —
+maltego-trx finds the transform by that match. Local name: domaintodns.
 """
 
 import dns.exception
@@ -27,7 +27,7 @@ from maltego_trx.transform import DiscoverableTransform
     output_entities=[IPAddress, MX],
 )
 class DomainToDns(DiscoverableTransform):
-    """maltego.Domain qəbul edir, A və MX entity-ləri qaytarır."""
+    """Accepts maltego.Domain and returns A and MX entities."""
 
     @classmethod
     def create_entities(cls, request: MaltegoMsg, response: MaltegoTransform):
@@ -49,7 +49,7 @@ class DomainToDns(DiscoverableTransform):
             response.addUIMessage(found["error"], UIM_PARTIAL)
             return
 
-        # Slider klientin nəticə limitidir. Lokal rejimdə kitabxana onu 100 yazır.
+        # Slider is the client's result limit. In local mode the library sets it to 100.
         remaining = request.Slider if request.Slider and request.Slider > 0 else 100
 
         for address in found["addresses"]:
@@ -65,7 +65,7 @@ class DomainToDns(DiscoverableTransform):
                 break
             entity = response.addEntity(MX, mail_host)
             entity.setLinkLabel("MX")
-            # Prioritet property-dir: kiçik rəqəm daha üstün mail server deməkdir.
+            # Priority is a property: a smaller number means a more preferred mail server.
             entity.addProperty("priority", "MX priority", "strict", str(preference))
             entity.addDisplayInformation(
                 f"MX {preference} for {hostname}",

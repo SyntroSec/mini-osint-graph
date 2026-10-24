@@ -1,35 +1,35 @@
-"""mini_graph/model.py — qrafın düyünü və transformun çıxışı.
+"""mini_graph/model.py — a graph node and a transform output.
 
-Entity-nin tipi, əsas dəyəri və əlavə property-ləri olur.
-Burada eyni üç sahə adi Python obyektidir. XML yoxdur.
+An entity has a type, a main value, and extra properties.
+Here those three fields are ordinary Python objects. There is no XML.
 
-Eyni tip və eyni dəyər eyni düyündür. Qrafda eyni
-entity təkrar düşəndə bir düyündə birləşir.
+The same type and the same value are the same node. When the same
+entity appears again on the graph, it merges into one node.
 """
 
 
 class Entity:
-    """Bir məlumat parçası: tip + dəyər + property-lər."""
+    """One piece of information: type + value + properties."""
 
     def __init__(self, type_name, value, properties=None, weight=100, display=""):
         self.type_name = type_name
         self.value = value
         self.properties = dict(properties or {})
         self.weight = weight
-        # DisplayInformation sahəsinin mətn qarşılığı.
+        # Text counterpart of the DisplayInformation field.
         self.display = display
 
     @property
     def id(self):
-        """Qrafdakı unikal açar. Tip və dəyər birlikdə düyünü müəyyən edir."""
+        """Unique key on the graph. Type and value together identify the node."""
         return f"{self.type_name}|{self.value}"
 
 
 class LinkedEntity:
-    """Transformun bir nəticəsi və onu giriş entity-sinə bağlayan yazı.
+    """One transform result and the label that links it to the input entity.
 
-    Bu yazı protokoldakı link#maltego.link.label property-sinin qarşılığıdır.
-    Burada link ayrıca sahədir, çünki qrafı özümüz yığırıq.
+    This label is the counterpart of the protocol property link#maltego.link.label.
+    Here the link is its own field, because this package builds the graph itself.
     """
 
     def __init__(self, entity, link_label):
@@ -38,7 +38,7 @@ class LinkedEntity:
 
 
 class Message:
-    """UIMessage-in qarşılığı: Inform və ya PartialError."""
+    """Counterpart of UIMessage: Inform or PartialError."""
 
     def __init__(self, text, kind="Inform"):
         self.text = text

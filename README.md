@@ -1,50 +1,50 @@
 # mini-osint-graph
 
-Domen adından DNS A və MX qeydlərini oxuyur və onları qraf kimi göstərir.
+Reads DNS A and MX records for a domain name and shows them as a graph.
 
-İki giriş var:
+There are two entry points:
 
-- `mini_graph` — nəticəni networkx qrafında mətn kimi çap edir.
-- `project.py` — eyni sorğunu `maltego-trx` ilə lokal transform və ya HTTP transform serveri kimi işlədir. Giriş entity tipi `maltego.Domain`, çıxışlar `maltego.IPv4Address` və `maltego.MXRecord`-dur.
+- `mini_graph` prints the result as a networkx graph in text form.
+- `project.py` runs the same lookup through `maltego-trx`, either as a local transform or as an HTTP transform server. The input entity type is `maltego.Domain`. The outputs are `maltego.IPv4Address` and `maltego.MXRecord`.
 
-## Quraşdırma
+## Installation
 
-Layihə kökündə:
+From the project root:
 
 ```text
 python -m venv venv
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-## İşlətmə
+## Usage
 
-Qraf aləti:
+Graph tool:
 
 ```text
 .\venv\Scripts\python.exe -m mini_graph example.com
 .\venv\Scripts\python.exe -m mini_graph example.com 1
 ```
 
-İkinci ədəd nəticə limitidir.
+The second number is the result limit.
 
-Lokal transform (stdout-a XML):
+Local transform (XML on stdout):
 
 ```text
 .\venv\Scripts\python.exe project.py local domaintodns example.com
 ```
 
-Öz maşınında HTTP server, yalnız `127.0.0.1:8080`:
+HTTP server on this machine only, at `127.0.0.1:8080`:
 
 ```text
 .\venv\Scripts\python.exe samples\serve_local.py
 ```
 
-Başqa terminalda:
+In another terminal:
 
 ```text
 curl.exe -D - -H "Content-Type: application/xml" --data-binary "@samples/domain_request.xml" http://127.0.0.1:8080/run/domaintodns
 ```
 
-Serveri `Ctrl+C` ilə dayandır.
+Stop the server with `Ctrl+C`.
 
-Layihə üçüncü tərəf açıq kitabxanalardan (maltego-trx, networkx) istifadə edir, detallar NOTICE.md faylındadır və layihənin hər hansı şirkətlə əlaqəsi yoxdur.
+This project uses third-party open-source libraries (maltego-trx, networkx), see NOTICE.md for details, and is not affiliated with any company.

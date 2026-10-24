@@ -1,7 +1,7 @@
-# Bu layihənin Python asılılıqları.
-# maltego-trx — açıq transform kitabxanası (entity sorğusunu və XML cavabı idarə edir).
-# dnspython — əməliyyat sisteminin DNS həlledicisi ilə A və MX qeydlərini oxumaq üçündür.
-# networkx — mini_graph paketində entity və linkləri qraf kimi saxlayır.
+# Python dependencies for this project.
+# maltego-trx — open transform library (handles the entity request and the XML response).
+# dnspython — reads A and MX records through the operating system's DNS resolver.
+# networkx — stores entities and links as a graph in the mini_graph package.
 maltego-trx==1.7.0
 dnspython==2.8.0
 networkx==3.6.1

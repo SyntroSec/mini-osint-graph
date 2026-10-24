@@ -1,10 +1,10 @@
-"""mini_graph/dns_transform.py — Domain entity-sindən A və MX entity-ləri.
+"""mini_graph/dns_transform.py — A and MX entities from a Domain entity.
 
-Bu, transforms/DomainToDns.py ilə eyni addımlardır:
-  domen adını yoxla, A və MX oxu, hər qeydi ayrı entity et.
-Fərq cavabın formasındadır. Server transformu entity-ləri XML-ə yazır
-və linki klient çəkir. Bu funksiya entity siyahısını və link yazısını
-qaytarır; qrafa əlavə edən graph.py-dir.
+The steps match transforms/DomainToDns.py:
+  check the domain name, read A and MX, make each record its own entity.
+The difference is the shape of the answer. The server transform writes
+entities to XML and the client draws the link. This function returns the
+entity list and the link label; graph.py adds them to the graph.
 """
 
 import dns.exception
@@ -12,17 +12,17 @@ from dns_records import lookup_domain, normalize_domain
 
 from mini_graph.model import Entity, LinkedEntity, Message
 
-# Tip adları transform serverinin entity identifikatorları ilə eynidir ki,
-# iki alətin qrafını gözlə müqayisə etmək olsun. Bu sabitlər kitabxananı çağırmır.
+# Type names match the transform server's entity identifiers so the two
+# tools' graphs can be compared by eye. These constants do not call the library.
 DOMAIN = "maltego.Domain"
 IPV4 = "maltego.IPv4Address"
 MX_RECORD = "maltego.MXRecord"
 
 
 def domain_to_dns(entity, limit=100):
-    """Bir Domain entity-si qəbul edir, LinkedEntity siyahısı və mesajlar qaytarır.
+    """Accept one Domain entity and return a LinkedEntity list plus messages.
 
-    limit nəticə slider-idir: bu qədər yeni entity-dən sonra dayanır.
+    limit is the result slider: stop after this many new entities.
     """
     hostname = normalize_domain(entity.value)
     if not hostname:

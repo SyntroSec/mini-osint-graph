@@ -1,8 +1,8 @@
-# Üçüncü tərəf kitabxanalar
+# Third-party libraries
 
-Aşağıdakı siyahı `requirements.txt` faylındakı paketlərdir. Versiya və lisenziya sahələri bu mühitdə `pip show` çıxışından oxunub.
+The packages below are those listed in `requirements.txt`. Versions and license fields were read from `pip show` in this environment.
 
-| Paket | Versiya | `pip show` lisenziya sahəsi |
+| Package | Version | `pip show` license field |
 |---|---|---|
 | maltego-trx | 1.7.0 | License: MIT |
 | dnspython | 2.8.0 | License: ISC |
