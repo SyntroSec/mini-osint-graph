@@ -1,4 +1,4 @@
-"""extensions.py — the transform passport shown in the graph client.
+﻿"""extensions.py — the transform passport shown in the graph client.
 
 The transform itself lives in transforms/DomainToDns.py. This file only
 stores metadata: who wrote it, which entity type it accepts, and which
@@ -14,9 +14,10 @@ from maltego_trx.decorator_registry import TransformRegistry
 
 registry = TransformRegistry(
     owner="Local learning project",
-    author="Ümid",
+    author="Umid Guluzada <275442326+umidguluzada@users.noreply.github.com>",
     host_url="http://127.0.0.1:8080",
     seed_ids=["local-dns"],
 )
 
 registry.version = "0.1"
+
